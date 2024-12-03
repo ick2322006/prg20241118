@@ -1,6 +1,18 @@
 
+
+
+body{
+    font-weight: bolder;
+    font-family: system-ui;
+}
 h1 {
-    font-size: large;
-    font-weight: bold;
-    color: blue;
+    color: aqua;
+    background-color: black;
+}
+h2 {
+    color: azure;
+    background-color: black;
+}
+h2 {
+    color:blue;
 }
