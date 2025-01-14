@@ -28,13 +28,16 @@
                     <input type="text">
                 </div>
             </fieldset> 
-            <input type="submit" value="送　信" onclick　= "ques()">
+            <input type="button" value="送　信" onclick　= "ques()">
             <button onclick="location.href'./index.html'">もどる</button>
         </form>
             <script>
                 function ques(){
                     if(window.confirm("申し込みますか？")){
-
+                        alert("完了しました")
+                        setTimeout(() => {
+                            locationhref = "./index.html";
+                        },3000);
                     }else{
                         send();
                     }
