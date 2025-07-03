@@ -1,53 +1,183 @@
-<!DOCTYPE html>
-<html lang = "ja">
-    <head>
-        <meta charset="UTF-8">
-        <title>市川天文台=ichiten-</title>
+document.addEventListener('DOMContentLoaded', () => {
+    const boardElement = document.getElementById('othello-board');
+    const currentPlayerSpan = document.getElementById('current-player');
+    const blackScoreSpan = document.getElementById('black-score');
+    const whiteScoreSpan = document.getElementById('white-score');
+    const resetButton = document.getElementById('reset-button');
 
-        <link href="stsyle.css" rel="stylesheet"/>
-    </head>
-    <body>
-        <h1>市川天文台</h1>
-        
-        <form>
-            <fieldset>
-                <legend>イベント申し込みフォーム</legend>
-                <div>
-                <input type="radio" id="contactChoice1" name="contact"/>
-                <label for="contactChoice1">星空観察会</label>
-    
-                <input type="radio" id="contactChoice2"  name="contact"/>
-                <label for="contactChoice2">館長の話を聞く会</label>
-                </div>
-                <div>
-                    お名前
-                    <input type="text">
-                </div>
-                <div>
-                    電話番号
-                    <input type="text">
-                </div>
-            </fieldset> 
-            <input type="button" value="送　信" onclick = "ques()">
-            
-            <script>
-                function ques(){
-                    if(window.confirm("申し込みますか？")){
-                        alert("完了しました")
-                        setTimeout(() => {
-                            location.href = "./index.html";
-                        },3000);
-                    }else{
-                        send();
+    // Game state
+    const EMPTY = 0;
+    const BLACK = 1;
+    const WHITE = 2;
+
+    let board = [];
+    let currentPlayer = BLACK;
+
+    // Initialize the board
+    function initializeBoard() {
+        board = Array(8).fill(0).map(() => Array(8).fill(EMPTY));
+        board[3][3] = WHITE;
+        board[3][4] = BLACK;
+        board[4][3] = BLACK;
+        board[4][4] = WHITE;
+        currentPlayer = BLACK; // Black starts
+        renderBoard();
+        updateScores();
+        updateCurrentPlayerDisplay();
+    }
+
+    // Render the board on the HTML
+    function renderBoard() {
+        boardElement.innerHTML = ''; // Clear existing board
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                const cell = document.createElement('div');
+                cell.classList.add('cell');
+                cell.dataset.row = r;
+                cell.dataset.col = c;
+
+                if (board[r][c] !== EMPTY) {
+                    const disk = document.createElement('div');
+                    disk.classList.add('disk');
+                    disk.classList.add(board[r][c] === BLACK ? 'black' : 'white');
+                    cell.appendChild(disk);
+                }
+
+                cell.addEventListener('click', handleCellClick);
+                boardElement.appendChild(cell);
+            }
+        }
+    }
+
+    // Handle a cell click
+    function handleCellClick(event) {
+        const row = parseInt(event.target.dataset.row);
+        const col = parseInt(event.target.dataset.col);
+
+        if (isNaN(row) || isNaN(col) || board[row][col] !== EMPTY) {
+            return; // Invalid click or cell already occupied
+        }
+
+        const flippedDisks = getFlippableDisks(row, col, currentPlayer);
+
+        if (flippedDisks.length > 0) {
+            // Place the disk
+            board[row][col] = currentPlayer;
+            // Flip the disks
+            flippedDisks.forEach(([r, c]) => {
+                board[r][c] = currentPlayer;
+            });
+
+            renderBoard();
+            updateScores();
+            switchPlayer();
+            updateCurrentPlayerDisplay();
+
+            // Check if current player has valid moves, if not, switch back
+            if (!hasValidMoves(currentPlayer)) {
+                switchPlayer();
+                updateCurrentPlayerDisplay();
+                if (!hasValidMoves(currentPlayer)) {
+                    // Game over
+                    endGame();
+                }
+            }
+        } else {
+            alert("Invalid move. You must flip at least one opponent's disk.");
+        }
+    }
+
+    // Get flippable disks for a given move
+    function getFlippableDisks(row, col, player) {
+        const opponent = player === BLACK ? WHITE : BLACK;
+        const directions = [
+            [-1, 0], [1, 0], [0, -1], [0, 1], // Horizontal and Vertical
+            [-1, -1], [-1, 1], [1, -1], [1, 1]  // Diagonal
+        ];
+        let flippable = [];
+
+        if (board[row][col] !== EMPTY) {
+            return flippable; // Cell already occupied
+        }
+
+        directions.forEach(([dr, dc]) => {
+            let tempFlippable = [];
+            let r = row + dr;
+            let c = col + dc;
+
+            while (r >= 0 && r < 8 && c >= 0 && c < 8 && board[r][c] === opponent) {
+                tempFlippable.push([r, c]);
+                r += dr;
+                c += dc;
+            }
+
+            if (r >= 0 && r < 8 && c >= 0 && c < 8 && board[r][c] === player) {
+                flippable = flippable.concat(tempFlippable);
+            }
+        });
+        return flippable;
+    }
+
+    // Check if a player has any valid moves
+    function hasValidMoves(player) {
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                if (board[r][c] === EMPTY) {
+                    if (getFlippableDisks(r, c, player).length > 0) {
+                        return true;
                     }
                 }
-                function send(){
-                    ("できませんでした")
+            }
+        }
+        return false;
+    }
+
+    // Switch the current player
+    function switchPlayer() {
+        currentPlayer = currentPlayer === BLACK ? WHITE : BLACK;
+    }
+
+    // Update the current player display
+    function updateCurrentPlayerDisplay() {
+        currentPlayerSpan.textContent = currentPlayer === BLACK ? 'Black' : 'White';
+    }
+
+    // Update the scores
+    function updateScores() {
+        let blackCount = 0;
+        let whiteCount = 0;
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                if (board[r][c] === BLACK) {
+                    blackCount++;
+                } else if (board[r][c] === WHITE) {
+                    whiteCount++;
                 }
-            </script>
-            
-        </form>
-        <button onclick="location.href='./index.html'">もどる</button>
-        <h6>この天文台は実在しません</h6>
-    </body>
-</html>
+            }
+        }
+        blackScoreSpan.textContent = blackCount;
+        whiteScoreSpan.textContent = whiteCount;
+    }
+
+    // End the game and declare winner
+    function endGame() {
+        const blackScore = parseInt(blackScoreSpan.textContent);
+        const whiteScore = parseInt(whiteScoreSpan.textContent);
+        let winnerMessage = '';
+
+        if (blackScore > whiteScore) {
+            winnerMessage = 'Black wins!';
+        } else if (whiteScore > blackScore) {
+            winnerMessage = 'White wins!';
+        } else {
+            winnerMessage = "It's a draw!";
+        }
+        alert(Game Over!\n${winnerMessage});
+    }
+
+    // Reset button functionality
+    resetButton.addEventListener('click', initializeBoard);
+
+    // Initial setup
+    initializeBoard();
+});
