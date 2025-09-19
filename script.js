@@ -6,6 +6,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const EMPTY = 0, BLACK = 1, WHITE = 2;
     let board = [];
     let currentPlayer = BLACK;
+    const players = {
+        [BLACK]: '黒',
+        [WHITE]: '白'
+    };
 
     // ゲームの初期化
     function initializeBoard() {
@@ -14,7 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
         board[3][4] = BLACK;
         board[4][3] = BLACK;
         board[4][4] = WHITE;
-        currentPlayer = BLACK; // 常に黒から開始
+        currentPlayer = BLACK;
         renderBoard();
         updateMessage();
     }
@@ -22,6 +26,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // 盤面を描画
     function renderBoard() {
         boardElement.innerHTML = '';
+        const validMoves = findValidMoves(currentPlayer);
+
         for (let r = 0; r < BOARD_SIZE; r++) {
             for (let c = 0; c < BOARD_SIZE; c++) {
                 const cell = document.createElement('div');
@@ -29,40 +35,43 @@ document.addEventListener('DOMContentLoaded', () => {
                 cell.dataset.row = r;
                 cell.dataset.col = c;
                 
+                // 石を置ける場所にハイライトを追加
+                if (validMoves.some(move => move.row === r && move.col === c)) {
+                    cell.classList.add('valid-move');
+                }
+
                 if (board[r][c] !== EMPTY) {
                     const piece = document.createElement('div');
                     piece.classList.add('piece', board[r][c] === BLACK ? 'black' : 'white');
                     cell.appendChild(piece);
                 }
                 
-                // クリックイベントを追加
                 cell.addEventListener('click', handleCellClick);
                 boardElement.appendChild(cell);
             }
         }
     }
 
-    // メッセージとプレイヤー情報を更新
-    function updateMessage() {
-        const blackCount = countPieces(BLACK);
-        const whiteCount = countPieces(WHITE);
+    // メッセージとスコアを更新
+    function updateMessage(status = 'playing') {
+        const blackCount = board.flat().filter(p => p === BLACK).length;
+        const whiteCount = board.flat().filter(p => p === WHITE).length;
         
-        let statusText = 黒: ${blackCount} 白: ${whiteCount} | 現在のプレイヤー: ${currentPlayer === BLACK ? '黒' : '白'};
-        
-        messageElement.textContent = statusText;
-    }
-
-    // 石の数をカウント
-    function countPieces(player) {
-        let count = 0;
-        for (let r = 0; r < BOARD_SIZE; r++) {
-            for (let c = 0; c < BOARD_SIZE; c++) {
-                if (board[r][c] === player) {
-                    count++;
-                }
+        if (status === 'playing') {
+            messageElement.innerHTML = 現在のプレイヤー: **${players[currentPlayer]}**<br>黒: ${blackCount} | 白: ${whiteCount};
+        } else if (status === 'gameover') {
+            let resultMessage = '';
+            if (blackCount > whiteCount) {
+                resultMessage = '黒の勝ちです！';
+            } else if (whiteCount > blackCount) {
+                resultMessage = '白の勝ちです！';
+            } else {
+                resultMessage = '引き分けです！';
             }
+            messageElement.innerHTML = **ゲーム終了！** ${resultMessage}<br>黒: ${blackCount} | 白: ${whiteCount};
+        } else if (status === 'pass') {
+            messageElement.innerHTML = **${players[currentPlayer]}**は置ける場所がないためパスします。<br>黒: ${blackCount} | 白: ${whiteCount};
         }
-        return count;
     }
 
     // セルがクリックされた時の処理
@@ -70,11 +79,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const row = parseInt(event.target.dataset.row);
         const col = parseInt(event.target.dataset.col);
 
-        // すでに石があるか、ひっくり返せる石がない場合は置けない
-        if (board[row][col] !== EMPTY || getPiecesToFlip(row, col, currentPlayer).length === 0) {
+        if (!isValidMove(row, col, currentPlayer)) {
             return;
         }
-        
+
         const piecesToFlip = getPiecesToFlip(row, col, currentPlayer);
         
         // 石を置く
@@ -85,11 +93,29 @@ document.addEventListener('DOMContentLoaded', () => {
             board[r][c] = currentPlayer;
         });
 
-        renderBoard();
         switchPlayer();
-        checkGameOver();
     }
 
+    // プレイヤーを交代し、次の手番をチェック
+    function switchPlayer() {
+        currentPlayer = currentPlayer === BLACK ? WHITE : BLACK;
+        
+        // 次のプレイヤーが置ける場所があるかチェック
+        if (findValidMoves(currentPlayer).length === 0) {
+            updateMessage('pass');
+            currentPlayer = currentPlayer === BLACK ? WHITE : BLACK; // プレイヤーをもう一度交代
+            
+            // パスした後に、相手も置ける場所がないかチェック
+            if (findValidMoves(currentPlayer).length === 0) {
+                endGame();
+                return;
+            }
+        }
+        
+        renderBoard();
+        updateMessage();
+    }
+    
     // ひっくり返せる石を取得
     function getPiecesToFlip(row, col, player) {
         const opponent = player === BLACK ? WHITE : BLACK;
@@ -121,74 +147,39 @@ document.addEventListener('DOMContentLoaded', () => {
         return piecesToFlip;
     }
 
-    // プレイヤーを交代
-    function switchPlayer() {
-        currentPlayer = currentPlayer === BLACK ? WHITE : BLACK;
-        updateMessage();
-        
-        // 次のプレイヤーが置ける場所がないかチェック（パス）
-        if (!canPlaceAnywhere(currentPlayer)) {
-            // もう一度プレイヤーを交代して、相手も置けないか確認
-            currentPlayer = currentPlayer === BLACK ? WHITE : BLACK;
-            if (!canPlaceAnywhere(currentPlayer)) {
-                checkGameOver(); // 両者置けない場合はゲーム終了
-            } else {
-                updateMessage();
-                alert(パス！${currentPlayer === BLACK ? '黒' : '白'}の番です。);
-            }
+    // 有効な手かどうかを判定
+    function isValidMove(row, col, player) {
+        if (board[row][col] !== EMPTY) {
+            return false;
         }
+        return getPiecesToFlip(row, col, player).length > 0;
     }
-    
-    // 現在のプレイヤーがどこかに石を置けるかチェック
-    function canPlaceAnywhere(player) {
+
+    // 置ける場所をすべて取得
+    function findValidMoves(player) {
+        const moves = [];
         for (let r = 0; r < BOARD_SIZE; r++) {
             for (let c = 0; c < BOARD_SIZE; c++) {
-                if (board[r][c] === EMPTY && getPiecesToFlip(r, c, player).length > 0) {
-                    return true;
+                if (isValidMove(r, c, player)) {
+                    moves.push({ row: r, col: c });
                 }
             }
         }
-        return false;
+        return moves;
     }
 
-    // ゲーム終了のチェック
-    function checkGameOver() {
-        const blackCount = countPieces(BLACK);
-        const whiteCount = countPieces(WHITE);
-
-        if (blackCount === 0 || whiteCount === 0) {
-            endGame(blackCount, whiteCount);
-        } else if (blackCount + whiteCount === BOARD_SIZE * BOARD_SIZE) {
-            endGame(blackCount, whiteCount);
-        } else if (!canPlaceAnywhere(BLACK) && !canPlaceAnywhere(WHITE)) {
-            endGame(blackCount, whiteCount);
-        }
-    }
-
-    // ゲーム終了処理と勝敗判定
-    function endGame(blackCount, whiteCount) {
-        let resultMessage = '';
-        if (blackCount > whiteCount) {
-            resultMessage = 黒の勝利！ 黒: ${blackCount} 白: ${whiteCount};
-        } else if (whiteCount > blackCount) {
-            resultMessage = 白の勝利！ 黒: ${blackCount} 白: ${whiteCount};
-        } else {
-            resultMessage = 引き分け！ 黒: ${blackCount} 白: ${whiteCount};
-        }
-        messageElement.textContent = ゲーム終了！ ${resultMessage};
-        
-        // クリックイベントを全て削除
+    // ゲーム終了処理
+    function endGame() {
+        updateMessage('gameover');
+        // クリックイベントを停止
         const cells = document.querySelectorAll('.cell');
-        cells.forEach(cell => {
-            cell.removeEventListener('click', handleCellClick);
-        });
+        cells.forEach(cell => cell.removeEventListener('click', handleCellClick));
     }
 
     // リセットボタンのイベントリスナー
-    resetButton.addEventListener('click', () => {
-        initializeBoard();
-    });
+    resetButton.addEventListener('click', initializeBoard);
 
     // 初回ゲーム開始
     initializeBoard();
 });
+
