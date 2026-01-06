@@ -1,28 +1,32 @@
 const { NFC } = require('nfc-pcsc');
 const nfc = new NFC();
 
-console.log('NFCリーダーを待機中...');
+console.log('--- [診断開始] ---');
+console.log('1. NFCライブラリを初期化しました。');
 
 nfc.on('reader', reader => {
-    console.log(`${reader.reader.name} を検出しました`);
+    // ここが表示されれば、ラズパイがリーダーを「認識」できています
+    console.log(`2. リーダーを検出しました!: ${reader.reader.name}`);
 
-    // カードが置かれたときの処理
     reader.on('card', card => {
-        // card.uid がカードの固有番号（IDm）です
-        console.log(`カードを検出しました！ ID: ${card.uid}`);
+        // ここが表示されれば、カードの読み取り成功です
+        console.log(`3. カードを検出!: ID = ${card.uid}`);
     });
 
-    // エラー処理
     reader.on('error', err => {
-        console.error(`エラーが発生しました: ${err}`);
+        console.log(`X. リーダーエラー発生: ${err}`);
     });
 
-    // カードが離れたとき
-    reader.on('card.off', card => {
-        console.log('カードが離れました');
+    reader.on('card.off', () => {
+        console.log('4. カードが離れました。');
     });
 });
 
 nfc.on('error', err => {
-    console.error('NFCエラー:', err);
+    console.log(`X. システム全体のエラー: ${err}`);
 });
+
+// 5秒経っても何も起きない場合
+setTimeout(() => {
+    console.log('--- [5秒経過] もし「2. リーダーを検出」が出ていなければ、OSがリーダーを認識できていません ---');
+}, 5000);
